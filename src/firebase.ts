@@ -7,6 +7,10 @@ const config = (firebaseConfig as any).default || firebaseConfig;
 
 console.log('Firebase Config loaded:', config);
 
+if (!config.apiKey || !config.authDomain) {
+  console.error('ERRO: Configuração do Firebase incompleta no arquivo firebase-applet-config.json');
+}
+
 const app = initializeApp(config);
 export const auth = getAuth(app);
-export const db = getFirestore(app, config.firestoreDatabaseId);
+export const db = getFirestore(app);

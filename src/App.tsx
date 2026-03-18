@@ -598,9 +598,14 @@ export default function App() {
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
+      console.log("Iniciando login com popup...");
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (error: any) {
+      console.error("Login error detail:", error);
+      alert(`Erro no Login: ${error.message || error.code || 'Erro desconhecido'}`);
+      if (error.code === 'auth/unauthorized-domain') {
+        alert("Este domínio/porta não está autorizado no Console do Firebase (Authentication > Settings > Authorized Domains).");
+      }
     }
   };
 
