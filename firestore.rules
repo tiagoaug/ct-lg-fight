@@ -1,0 +1,465 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: students
+    // Document ID: studentId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - phone: string (required, size < 20)
+    //   - entryDate: string (required, ISO 8601)
+    //   - paymentDay: number (required, 1-31)
+    //   - modalities: list (required, strings)
+    //   - status: string (required, enum)
+    //   - bjjRank: string (optional)
+    //   - bjjDegrees: number (optional)
+    //   - muayThaiRank: string (optional)
+    //   - mmaRank: string (optional)
+    //   - graduationHistory: list (optional, objects)
+    //   - payments: list (optional, objects)
+    //   - birthDate: string (required, ISO 8601)
+    //   - monthlyFees: map (required, modality keys to number values)
+    //
+    // Collection: suppliers
+    // Document ID: supplierId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - cnpj: string (optional)
+    //   - contact: string (optional, size < 100)
+    //
+    // Collection: products
+    // Document ID: productId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - supplierId: string (required)
+    //   - costPrice: number (required, >= 0)
+    //   - salePrice: number (required, >= 0)
+    //   - stock: number (required)
+    //   - minStock: number (required)
+    //   - category: string (required, enum)
+    //   - active: bool (required)
+    //
+    // Collection: transactions
+    // Document ID: transactionId
+    // Fields:
+    //   - id: string (required)
+    //   - type: string (required, enum)
+    //   - category: string (required)
+    //   - description: string (required, size < 200)
+    //   - amount: number (required, >= 0)
+    //   - date: string (required, ISO 8601)
+    //   - studentId: string (optional)
+    //   - productId: string (optional)
+    //   - partnerId: string (optional)
+    //
+    // Collection: partners
+    // Document ID: partnerId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - type: string (required, enum)
+    //   - contact: string (required, size < 100)
+    //   - active: bool (required)
+    //
+    // Collection: academy_gallery
+    // Document ID: imageId
+    // Fields:
+    //   - id: string (required)
+    //   - url: string (required)
+    //   - description: string (optional)
+    //   - createdAt: string (required, ISO 8601)
+    //   - folderId: string (optional)
+    //
+    // Collection: gallery_folders
+    // Document ID: folderId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 50)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: teachers
+    // Document ID: teacherId
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required, size < 100)
+    //   - phone: string (optional, size < 20)
+    //   - modalities: list (required, strings)
+    //   - paymentType: string (required, enum)
+    //   - paymentAmount: number (required, >= 0)
+    //   - active: bool (required)
+    //
+    // Collection: teacher_payments
+    // Document ID: paymentId
+    // Fields:
+    //   - id: string (required)
+    //   - teacherId: string (required)
+    //   - amount: number (required, >= 0)
+    //   - date: string (required, ISO 8601)
+    //   - periodStart: string (required, ISO 8601)
+    //   - periodEnd: string (required, ISO 8601)
+    //   - status: string (required, enum)
+    //   - notes: string (optional)
+    //   - classCount: number (optional)
+    //
+    // Collection: teacher_class_logs
+    // Document ID: logId
+    // Fields:
+    //   - id: string (required)
+    //   - teacherId: string (required)
+    //   - date: string (required, ISO 8601)
+    //   - modality: string (required)
+    //   - classCount: number (required, >= 0)
+    //   - rate: number (required, >= 0)
+    //   - notes: string (optional)
+    //
+    // Collection: orders
+    // Document ID: orderId
+    // Fields:
+    //   - id: string (required)
+    //   - studentId: string (required)
+    //   - productId: string (required)
+    //   - quantity: number (required, >= 0)
+    //   - status: string (required, enum)
+    //   - createdAt: string (required, ISO 8601)
+    //
+    // Collection: sales
+    // Document ID: saleId
+    // Fields:
+    //   - id: string (required)
+    //   - saleNumber: string (required)
+    //   - type: string (required, enum)
+    //   - items: list (required, objects)
+    //   - totalAmount: number (required, >= 0)
+    //   - totalDiscount: number (required, >= 0)
+    //   - finalAmount: number (required, >= 0)
+    //   - createdAt: string (required, ISO 8601)
+    //   - status: string (required, enum)
+    //   - stockAction: string (required, enum)
+    //   - payerName: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "tiagoaugusto.ns@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && (dateStr == "" || dateStr.matches("^\\d{4}-\\d{2}-\\d{2}.*"));
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'entryDate', 'paymentDay', 'modalities', 'status', 'category']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() < 20 &&
+             isValidDateString(data.entryDate) &&
+             data.paymentDay is number && data.paymentDay >= 1 && data.paymentDay <= 31 &&
+             data.modalities is list &&
+             data.status in ['Ativo', 'Inativo', 'Lesionado'] &&
+             data.category in ['Kids', 'Adult'] &&
+             (!('birthDate' in data) || isValidDateString(data.birthDate)) &&
+             (!('monthlyFees' in data) || data.monthlyFees is map) &&
+             (!('photoUrl' in data) || data.photoUrl is string) &&
+             (!('gallery' in data) || data.gallery is list);
+    }
+
+    function isValidSupplier(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('cnpj' in data) || data.cnpj is string) &&
+             (!('contact' in data) || (data.contact is string && data.contact.size() < 100));
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'supplierId', 'costPrice', 'salePrice', 'stock', 'minStock', 'category', 'active']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.supplierId is string &&
+             data.costPrice is number && data.costPrice >= 0 &&
+             data.salePrice is number && data.salePrice >= 0 &&
+             data.stock is number &&
+             data.minStock is number &&
+             data.category in ['Vestuário', 'Equipamento', 'Suplemento', 'Acessório', 'Educação', 'Outros'] &&
+             data.active is bool;
+    }
+
+    function isValidPartner(data) {
+      return data.keys().hasAll(['id', 'name', 'type', 'contact', 'active']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.type in ['Patrocinador', 'Colaborador', 'Cliente', 'Outros'] &&
+             data.contact is string && data.contact.size() < 100 &&
+             data.active is bool;
+    }
+
+    function isValidGalleryFolder(data) {
+      return data.keys().hasAll(['id', 'name', 'createdAt']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'type']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
+             data.type in ['income', 'expense'];
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['id']) &&
+             data.keys().hasOnly(['id', 'logoUrl', 'academyName']) &&
+             data.id is string &&
+             (!('logoUrl' in data) || data.logoUrl is string) &&
+             (!('academyName' in data) || data.academyName is string);
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['id', 'type', 'category', 'description', 'amount', 'date']) &&
+             data.keys().hasOnly(['id', 'type', 'category', 'description', 'amount', 'date', 'studentId', 'productId', 'partnerId']) &&
+             data.id is string &&
+             data.type in ['income', 'expense'] &&
+             data.category is string &&
+             data.description is string && data.description.size() < 200 &&
+             data.amount is number && data.amount >= 0 &&
+             isValidDateString(data.date) &&
+             (!('studentId' in data) || data.studentId is string) &&
+             (!('productId' in data) || data.productId is string) &&
+             (!('partnerId' in data) || data.partnerId is string);
+    }
+
+    function isValidTeacher(data) {
+      return data.keys().hasAll(['id', 'name', 'modalities', 'paymentType', 'paymentAmount', 'active']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 20)) &&
+             data.modalities is list &&
+             data.paymentType in ['per-class', 'weekly', 'bi-weekly', 'monthly'] &&
+             data.paymentAmount is number && data.paymentAmount >= 0 &&
+             (!('modalityRates' in data) || data.modalityRates is map) &&
+             data.active is bool;
+    }
+
+    function isValidTeacherPayment(data) {
+      return data.keys().hasAll(['id', 'teacherId', 'amount', 'date', 'periodStart', 'periodEnd', 'status']) &&
+             data.id is string &&
+             data.teacherId is string &&
+             data.amount is number && data.amount >= 0 &&
+             isValidDateString(data.date) &&
+             isValidDateString(data.periodStart) &&
+             isValidDateString(data.periodEnd) &&
+             data.status in ['paid', 'pending'] &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('classCount' in data) || data.classCount is number);
+    }
+
+    function isValidTeacherClassLog(data) {
+      return data.keys().hasAll(['id', 'teacherId', 'date', 'modality', 'classCount', 'rate']) &&
+             data.id is string &&
+             data.teacherId is string &&
+             isValidDateString(data.date) &&
+             data.modality is string &&
+             data.classCount is number && data.classCount >= 0 &&
+             data.rate is number && data.rate >= 0 &&
+             (!('notes' in data) || data.notes is string);
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'studentId', 'productId', 'quantity', 'status', 'createdAt']) &&
+             data.id is string &&
+             data.studentId is string &&
+             data.productId is string &&
+             data.quantity is number && data.quantity >= 0 &&
+             data.status in ['pending', 'paid', 'delivered'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidPurchaseOrder(data) {
+      return data.keys().hasAll(['id', 'supplierId', 'productId', 'quantity', 'status', 'createdAt']) &&
+             data.id is string &&
+             data.supplierId is string &&
+             data.productId is string &&
+             (!('variationId' in data) || data.variationId is string) &&
+             data.quantity is number && data.quantity >= 0 &&
+             data.status in ['pending', 'ordered', 'received'] &&
+             isValidDateString(data.createdAt) &&
+             (!('totalValue' in data) || (data.totalValue is number && data.totalValue >= 0)) &&
+             (!('dueDate' in data) || isValidDateString(data.dueDate)) &&
+             (!('amountPaid' in data) || (data.amountPaid is number && data.amountPaid >= 0));
+    }
+
+    function isValidPaymentMethod(data) {
+      return data.keys().hasAll(['id', 'name', 'key', 'type']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.key is string && data.key.size() > 0 && data.key.size() < 100 &&
+             data.type in ['Pix', 'Cartão', 'Dinheiro', 'Outros'];
+    }
+
+    function isValidSale(data) {
+      return data.keys().hasAll(['id', 'saleNumber', 'type', 'items', 'totalAmount', 'totalDiscount', 'finalAmount', 'createdAt', 'status', 'stockAction']) &&
+             data.id is string &&
+             data.saleNumber is string && data.saleNumber.size() > 0 && data.saleNumber.size() < 50 &&
+             data.type in ['simple', 'group'] &&
+             data.items is list &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.totalDiscount is number && data.totalDiscount >= 0 &&
+             data.finalAmount is number && data.finalAmount >= 0 &&
+             isValidDateString(data.createdAt) &&
+             data.status in ['pending', 'completed', 'cancelled'] &&
+             data.stockAction in ['deduct', 'purchase_list', 'none'] &&
+             (!('payerName' in data) || (data.payerName is string && data.payerName.size() < 100));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isAdmin();
+    }
+
+    match /payment_methods {
+      allow read, list, create, update, delete: if isAuthenticated();
+    }
+
+    match /payment_methods/{paymentMethodId} {
+      allow read, list, create, update, delete: if isAuthenticated();
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidStudent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidSupplier(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      allow update: if isAdmin() && isValidTransaction(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /partners/{partnerId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidPartner(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidCategory(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingsId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidSettings(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /ranks/{rankId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /academy_gallery/{imageId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && 
+        request.resource.data.keys().hasAll(['id', 'url', 'createdAt']) &&
+        (!('folderId' in request.resource.data) || request.resource.data.folderId is string);
+      allow delete: if isAdmin();
+    }
+
+    match /gallery_folders/{folderId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidGalleryFolder(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /teachers/{teacherId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidTeacher(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /teacher_payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidTeacherPayment(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /teacher_class_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidTeacherClassLog(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidOrder(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /purchaseOrders {
+      allow read, list: if true;
+    }
+
+    match /purchaseOrders/{orderId} {
+      allow read, list: if true;
+      allow create, update: if isAuthenticated() && isValidPurchaseOrder(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /sales {
+      allow read: if isAuthenticated();
+    }
+
+    match /sales/{saleId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidSale(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

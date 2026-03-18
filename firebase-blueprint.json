@@ -1,0 +1,332 @@
+{
+  "entities": {
+    "Graduation": {
+      "title": "Graduation",
+      "description": "A graduation record for a student.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date", "description": "The date of the graduation." },
+        "rank": { "type": "string", "description": "The rank achieved." },
+        "degree": { "type": "number", "description": "The degree achieved (for BJJ)." },
+        "notes": { "type": "string", "description": "Optional notes about the graduation." }
+      },
+      "required": ["date", "rank"]
+    },
+    "MonthlyPayment": {
+      "title": "Monthly Payment",
+      "description": "A record of a monthly payment for a student.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the payment." },
+        "month": { "type": "string", "description": "The month of the payment." },
+        "year": { "type": "number", "description": "The year of the payment." },
+        "amount": { "type": "number", "description": "The amount paid or due." },
+        "status": { "type": "string", "enum": ["paid", "pending"], "description": "The status of the payment." },
+        "dueDate": { "type": "string", "format": "date", "description": "The due date of the payment." },
+        "paymentDate": { "type": "string", "format": "date", "description": "The date the payment was made." },
+        "modality": { "type": "string", "description": "The modality associated with this payment." }
+      },
+      "required": ["id", "month", "year", "amount", "status", "dueDate", "modality"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "A student in the academy.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the student." },
+        "name": { "type": "string", "description": "Full name of the student." },
+        "phone": { "type": "string", "description": "Contact phone number." },
+        "entryDate": { "type": "string", "format": "date", "description": "The date the student joined." },
+        "paymentDay": { "type": "number", "description": "The preferred day for monthly payments." },
+        "modalities": { "type": "array", "items": { "type": "string" }, "description": "List of modalities the student practices." },
+        "status": { "type": "string", "enum": ["Ativo", "Inativo", "Lesionado"], "description": "The current status of the student." },
+        "bjjRank": { "type": "string", "description": "Current BJJ rank." },
+        "bjjDegrees": { "type": "number", "description": "Current BJJ degrees." },
+        "muayThaiRank": { "type": "string", "description": "Current Muay Thai rank." },
+        "mmaRank": { "type": "string", "description": "Current MMA rank." },
+        "graduationHistory": { "type": "array", "items": { "$ref": "Graduation" }, "description": "History of graduations." },
+        "payments": { "type": "array", "items": { "$ref": "MonthlyPayment" }, "description": "History of monthly payments." },
+        "birthDate": { "type": "string", "format": "date", "description": "The student's birth date." },
+        "monthlyFees": { "type": "object", "description": "Map of modality to monthly fee amount." },
+        "photoUrl": { "type": "string", "description": "URL of the student's profile photo." },
+        "gallery": { "type": "array", "items": { "type": "string" }, "description": "List of URLs for the student's photo gallery." }
+      },
+      "required": ["id", "name", "phone", "entryDate", "paymentDay", "modalities", "status", "birthDate", "monthlyFees"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "A supplier for the store.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the supplier." },
+        "name": { "type": "string", "description": "Name of the supplier." },
+        "cnpj": { "type": "string", "description": "Optional CNPJ of the supplier." },
+        "contact": { "type": "string", "description": "Contact information for the supplier." }
+      },
+      "required": ["id", "name"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "A partner or sponsor for the academy.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the partner." },
+        "name": { "type": "string", "description": "Name of the partner." },
+        "type": { "type": "string", "enum": ["Patrocinador", "Colaborador", "Cliente", "Outros"], "description": "Type of partnership." },
+        "contact": { "type": "string", "description": "Contact information for the partner." },
+        "active": { "type": "boolean", "description": "Whether the partnership is currently active." }
+      },
+      "required": ["id", "name", "type", "contact", "active"]
+    },
+    "ProductVariation": {
+      "title": "Product Variation",
+      "description": "A variation of a product (size, color, stock).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the variation." },
+        "size": { "type": "string", "description": "Size of the variation." },
+        "color": { "type": "string", "description": "Color of the variation." },
+        "stock": { "type": "number", "description": "Stock level for this variation." },
+        "minStock": { "type": "number", "description": "Minimum stock level for this variation." },
+        "costPrice": { "type": "number", "description": "Cost price for this variation." },
+        "salePrice": { "type": "number", "description": "Sale price for this variation." },
+        "isValidated": { "type": "boolean", "description": "Whether the variation is validated." }
+      },
+      "required": ["id", "size", "color", "stock", "minStock", "costPrice", "salePrice"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product in the store.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the product." },
+        "name": { "type": "string", "description": "Name of the product." },
+        "supplierId": { "type": "string", "description": "ID of the supplier." },
+        "costPrice": { "type": "number", "description": "Cost price of the product." },
+        "salePrice": { "type": "number", "description": "Sale price of the product." },
+        "stock": { "type": "number", "description": "Current stock level." },
+        "minStock": { "type": "number", "description": "Minimum stock level for alerts." },
+        "category": { "type": "string", "enum": ["Vestuário", "Equipamento", "Suplemento", "Acessório", "Educação", "Outros"], "description": "Category of the product." },
+        "active": { "type": "boolean", "description": "Whether the product is currently active." },
+        "variations": { "type": "array", "items": { "$ref": "ProductVariation" }, "description": "List of product variations." },
+        "useGlobalPricing": { "type": "boolean", "description": "Whether to use global pricing for variations." },
+        "globalCostPrice": { "type": "number", "description": "Global cost price for variations." },
+        "globalSalePrice": { "type": "number", "description": "Global sale price for variations." }
+      },
+      "required": ["id", "name", "supplierId", "costPrice", "salePrice", "stock", "minStock", "category", "active"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A financial transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the transaction." },
+        "type": { "type": "string", "enum": ["income", "expense"], "description": "Type of transaction." },
+        "category": { "type": "string", "description": "Category of the transaction." },
+        "description": { "type": "string", "description": "Description of the transaction." },
+        "amount": { "type": "number", "description": "Amount of the transaction." },
+        "date": { "type": "string", "format": "date", "description": "Date of the transaction." },
+        "studentId": { "type": "string", "description": "Optional student ID associated with the transaction." },
+        "productId": { "type": "string", "description": "Optional product ID associated with the transaction." },
+        "partnerId": { "type": "string", "description": "Optional partner ID associated with the transaction." }
+      },
+      "required": ["id", "type", "category", "description", "amount", "date"]
+    },
+    "Rank": {
+      "title": "Rank",
+      "description": "A belt or rank for a specific modality.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the rank." },
+        "modality": { "type": "string", "description": "The modality this rank belongs to." },
+        "name": { "type": "string", "description": "The name of the rank (e.g., 'Branca')." },
+        "order": { "type": "number", "description": "The order of the rank in the progression." },
+        "maxDegrees": { "type": "number", "description": "Maximum number of degrees for this rank." }
+      },
+      "required": ["id", "modality", "name", "order"]
+    },
+    "AcademyImage": {
+      "title": "Academy Image",
+      "description": "An image for the academy gallery.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the image." },
+        "url": { "type": "string", "description": "URL of the image." },
+        "description": { "type": "string", "description": "Optional description of the image." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the image was added." },
+        "folderId": { "type": "string", "description": "Optional ID of the folder this image belongs to." }
+      },
+      "required": ["id", "url", "createdAt"]
+    },
+    "GalleryFolder": {
+      "title": "Gallery Folder",
+      "description": "A folder for organizing academy images.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the folder." },
+        "name": { "type": "string", "description": "Name of the folder." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the folder was created." }
+      },
+      "required": ["id", "name", "createdAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A financial category for income or expense.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the category." },
+        "name": { "type": "string", "description": "Name of the category." },
+        "type": { "type": "string", "enum": ["income", "expense"], "description": "Type of category." }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Academy settings and configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the settings (usually 'main')." },
+        "logoUrl": { "type": "string", "description": "URL of the academy logo." },
+        "academyName": { "type": "string", "description": "Name of the academy." }
+      },
+      "required": ["id"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "A teacher in the academy.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the teacher." },
+        "name": { "type": "string", "description": "Full name of the teacher." },
+        "phone": { "type": "string", "description": "Contact phone number." },
+        "modalities": { "type": "array", "items": { "type": "string" }, "description": "List of modalities the teacher teaches." },
+        "paymentType": { "type": "string", "enum": ["per-class", "weekly", "bi-weekly", "monthly"], "description": "How the teacher is paid." },
+        "paymentAmount": { "type": "number", "description": "The amount for the payment type." },
+        "active": { "type": "boolean", "description": "Whether the teacher is currently active." }
+      },
+      "required": ["id", "name", "modalities", "paymentType", "paymentAmount", "active"]
+    },
+    "TeacherPayment": {
+      "title": "Teacher Payment",
+      "description": "A record of a payment made to a teacher.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the payment." },
+        "teacherId": { "type": "string", "description": "ID of the teacher." },
+        "amount": { "type": "number", "description": "The amount paid." },
+        "date": { "type": "string", "format": "date-time", "description": "The date the payment was made." },
+        "periodStart": { "type": "string", "format": "date", "description": "Start of the payment period." },
+        "periodEnd": { "type": "string", "format": "date", "description": "End of the payment period." },
+        "status": { "type": "string", "enum": ["paid", "pending"], "description": "The status of the payment." },
+        "notes": { "type": "string", "description": "Optional notes." },
+        "classCount": { "type": "number", "description": "Optional count of classes for per-class payments." }
+      },
+      "required": ["id", "teacherId", "amount", "date", "periodStart", "periodEnd", "status"]
+    },
+    "TeacherClassLog": {
+      "title": "Teacher Class Log",
+      "description": "A record of a class taught by a teacher.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the log." },
+        "teacherId": { "type": "string", "description": "ID of the teacher." },
+        "date": { "type": "string", "format": "date", "description": "The date the class was taught." },
+        "modality": { "type": "string", "description": "The modality of the class." },
+        "classCount": { "type": "number", "description": "Number of classes taught." },
+        "rate": { "type": "number", "description": "The rate per class at that time." },
+        "notes": { "type": "string", "description": "Optional notes." }
+      },
+      "required": ["id", "teacherId", "date", "modality", "classCount", "rate"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order for products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the order." },
+        "studentId": { "type": "string", "description": "ID of the student/client." },
+        "productId": { "type": "string", "description": "ID of the product." },
+        "quantity": { "type": "number", "description": "Quantity ordered." },
+        "status": { "type": "string", "enum": ["pending", "paid", "delivered"], "description": "Status of the order." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the order was created." }
+      },
+      "required": ["id", "studentId", "productId", "quantity", "status", "createdAt"]
+    },
+    "PurchaseOrder": {
+      "title": "Purchase Order",
+      "description": "An order placed with a supplier.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID." },
+        "supplierId": { "type": "string", "description": "ID of the supplier." },
+        "productId": { "type": "string", "description": "ID of the product." },
+        "variationId": { "type": "string", "description": "ID of the variation." },
+        "quantity": { "type": "number", "description": "Quantity ordered." },
+        "status": { "type": "string", "enum": ["pending", "ordered", "received"], "description": "Status of the order." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation date." },
+        "totalValue": { "type": "number", "description": "Total value of the order." },
+        "dueDate": { "type": "string", "format": "date", "description": "Due date for payment." },
+        "amountPaid": { "type": "number", "description": "Amount already paid." }
+      },
+      "required": ["id", "supplierId", "productId", "quantity", "status", "createdAt"]
+    },
+    "SaleItem": {
+      "title": "Sale Item",
+      "description": "An item in a sale.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the sale item." },
+        "productId": { "type": "string", "description": "ID of the product." },
+        "variationId": { "type": "string", "description": "Optional ID of the variation." },
+        "buyerId": { "type": "string", "description": "ID of the buyer." },
+        "buyerType": { "type": "string", "enum": ["student", "partner", "teacher", "client"], "description": "Type of buyer." },
+        "buyerName": { "type": "string", "description": "Optional name of the buyer." },
+        "quantity": { "type": "number", "description": "Quantity sold." },
+        "unitPrice": { "type": "number", "description": "Unit price." },
+        "discount": { "type": "number", "description": "Discount applied." },
+        "totalPrice": { "type": "number", "description": "Total price for this item." },
+        "payerId": { "type": "string", "description": "Optional ID of the payer." },
+        "payerName": { "type": "string", "description": "Optional name of the payer." },
+        "status": { "type": "string", "enum": ["pending", "paid", "delivered"], "description": "Status of the item." }
+      },
+      "required": ["id", "productId", "buyerId", "buyerType", "quantity", "unitPrice", "discount", "totalPrice", "status"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A sale record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the sale." },
+        "saleNumber": { "type": "string", "description": "Sale number." },
+        "type": { "type": "string", "enum": ["simple", "group"], "description": "Type of sale." },
+        "items": { "type": "array", "items": { "$ref": "SaleItem" }, "description": "Items in the sale." },
+        "totalAmount": { "type": "number", "description": "Total amount before discount." },
+        "totalDiscount": { "type": "number", "description": "Total discount applied." },
+        "finalAmount": { "type": "number", "description": "Final amount after discount." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the sale was created." },
+        "status": { "type": "string", "enum": ["pending", "completed", "cancelled"], "description": "Status of the sale." },
+        "stockAction": { "type": "string", "enum": ["deduct", "purchase_list", "none"], "description": "Action taken on stock." },
+        "payerName": { "type": "string", "description": "Optional name of the payer." }
+      },
+      "required": ["id", "saleNumber", "type", "items", "totalAmount", "totalDiscount", "finalAmount", "createdAt", "status", "stockAction"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": { "schema": "Student", "description": "Collection of students." },
+    "/suppliers/{supplierId}": { "schema": "Supplier", "description": "Collection of suppliers." },
+    "/products/{productId}": { "schema": "Product", "description": "Collection of products." },
+    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Collection of transactions." },
+    "/ranks/{rankId}": { "schema": "Rank", "description": "Collection of ranks for modalities." },
+    "/academy_gallery/{imageId}": { "schema": "AcademyImage", "description": "Collection of images for the academy gallery." },
+    "/gallery_folders/{folderId}": { "schema": "GalleryFolder", "description": "Collection of folders for the academy gallery." },
+    "/partners/{partnerId}": { "schema": "Partner", "description": "Collection of partners and sponsors." },
+    "/categories/{categoryId}": { "schema": "Category", "description": "Collection of financial categories." },
+    "/settings/{settingsId}": { "schema": "Settings", "description": "Collection for academy settings." },
+    "/teachers/{teacherId}": { "schema": "Teacher", "description": "Collection of teachers." },
+    "/teacher_payments/{paymentId}": { "schema": "TeacherPayment", "description": "Collection of teacher payments." },
+    "/teacher_class_logs/{logId}": { "schema": "TeacherClassLog", "description": "Collection of teacher class logs." },
+    "/orders/{orderId}": { "schema": "Order", "description": "Collection of customer orders." },
+    "/purchaseOrders/{orderId}": { "schema": "PurchaseOrder", "description": "Collection of purchase orders to suppliers." },
+    "/sales/{saleId}": { "schema": "Sale", "description": "Collection of sales." }
+  }
+}
