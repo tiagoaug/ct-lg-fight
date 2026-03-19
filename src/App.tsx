@@ -147,6 +147,7 @@ import {
   MMA_RANKS, 
   EXPENSE_CATEGORIES 
 } from './constants';
+import { seedDatabase } from './seedData';
 
 // --- Error Handling ---
 
@@ -3384,36 +3385,126 @@ export default function App() {
               {sales.length === 0 ? (
                 <p className="text-zinc-500 text-sm text-center py-4 italic">Nenhuma venda registrada.</p>
               ) : (
-                sales.slice(0, 5).map(sale => (
-                  <div key={sale.id} className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-100 dark:border-zinc-800/50">
-                    <div>
-                      <p className="text-zinc-900 dark:text-white font-bold text-sm">{sale.saleNumber}</p>
-                      <p className="text-zinc-500 text-[10px] uppercase font-bold">R$ {sale.finalAmount.toFixed(2)} • {format(parseISO(sale.createdAt), 'dd/MM HH:mm')}</p>
+                sales.slice(0, 10).map(sale => {
+                  const isExpanded = expandedSales.includes(sale.id);
+                  return (
+                    <div key={sale.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-lg">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setExpandedSales(prev => isExpanded ? prev.filter(id => id !== sale.id) : [...prev, sale.id])}>
+                            {isExpanded ? <ChevronUp className="w-5 h-5 text-zinc-500" /> : <ChevronDown className="w-5 h-5 text-zinc-500" />}
+                          </button>
+                          <div>
+                            <h4 className="text-zinc-900 dark:text-white font-bold">{sale.saleNumber}</h4>
+                            <p className="text-zinc-500 dark:text-zinc-400 text-xs">{format(parseISO(sale.createdAt), 'dd/MM/yyyy HH:mm')}</p>
+                            {sale.payerName && (
+                              <p className="text-zinc-600 dark:text-zinc-400 text-xs mt-1">
+                                <span className="font-semibold">Pago por:</span> {sale.payerName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="text-right">
+                            <p className="text-emerald-600 dark:text-emerald-400 font-bold">R$ {sale.finalAmount.toFixed(2)}</p>
+                            <span className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
+                              sale.type === 'simple' ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"
+                            )}>
+                              {sale.type === 'simple' ? 'Venda Simples' : 'Venda Grupo'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingSaleId(sale.id);
+                                setView(sale.type);
+                                setSaleItems(sale.items);
+                                setSaleNumber(sale.saleNumber);
+                                setPayerName(sale.payerName || '');
+                                setCurrentScreen('store'); // Redirect to store to edit
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                              title="Editar Venda"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('Deseja realmente excluir esta venda? O estoque será estornado.')) {
+                                  handleDeleteSale(sale);
+                                }
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              title="Excluir Venda"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isExpanded && (
+                        <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                          {sale.items.map(item => {
+                            const product = products.find(p => p.id === item.productId);
+                            const paid = item.status === 'paid';
+                            return (
+                              <div key={item.id} className={cn(
+                                "flex justify-between items-center text-sm p-3 rounded-lg border",
+                                paid ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700" : "bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800"
+                              )}>
+                                <div className="flex items-center gap-3">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={paid} 
+                                    title="Marcar como pago"
+                                    onChange={() => {
+                                      const newStatus = paid ? 'pending' : 'paid';
+                                      const updatedItems = sale.items.map(i => i.id === item.id ? { ...i, status: newStatus } : i);
+                                      handleUpdateSale(sale.id, { items: updatedItems });
+                                    }}
+                                    className="w-5 h-5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                                  />
+                                  <div className="flex-1">
+                                    <p className={cn("font-bold", paid ? "text-zinc-500 dark:text-zinc-400 line-through" : "text-zinc-900 dark:text-white")}>
+                                      {item.buyerName || 'Sem nome'}
+                                    </p>
+                                    <p className={cn("text-xs", paid ? "text-zinc-400 dark:text-zinc-500" : "text-zinc-500 dark:text-zinc-400")}>
+                                      {item.quantity}x {product?.name}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className={cn("font-bold", paid ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-900 dark:text-white")}>
+                                    R$ {item.totalPrice.toFixed(2)}
+                                  </p>
+                                  {!paid && <p className="text-xs text-orange-500 font-bold">Pendente</p>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="grid grid-cols-2 gap-3 mt-4">
+                            <button
+                              onClick={() => generateSalePDF(sale, { showValues: true })}
+                              className="flex items-center justify-center gap-2 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-bold transition-all active:scale-95"
+                            >
+                              <FileText className="w-4 h-4" />
+                              PDF Completo
+                            </button>
+                            <button
+                              onClick={() => generateSalePDF(sale, { showValues: false })}
+                              className="flex items-center justify-center gap-2 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg text-xs font-bold border border-zinc-200 dark:border-zinc-700 transition-all active:scale-95"
+                            >
+                              <FileText className="w-4 h-4" />
+                              PDF Resumo
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => {
-                          setEditingSaleId(sale.id);
-                          setView(sale.type);
-                          setSaleItems(sale.items);
-                          setSaleNumber(sale.saleNumber);
-                          setPayerName(sale.payerName || '');
-                        }}
-                        className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
-                        title="Editar Venda"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteSale(sale)}
-                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Excluir Venda"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -6480,15 +6571,22 @@ export default function App() {
                           </div>
                         );
                       })}
-                      {sale.type === 'group' && (
+                      <div className="grid grid-cols-2 gap-3 mt-4">
                         <button
-                          onClick={() => generateGroupSalePDF(sale)}
-                          className="mt-4 w-full flex items-center justify-center gap-2 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-sm font-bold"
+                          onClick={() => generateSalePDF(sale, { showValues: true })}
+                          className="flex items-center justify-center gap-2 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-bold transition-all active:scale-95"
                         >
                           <FileText className="w-4 h-4" />
-                          Exportar PDF
+                          PDF Completo
                         </button>
-                      )}
+                        <button
+                          onClick={() => generateSalePDF(sale, { showValues: false })}
+                          className="flex items-center justify-center gap-2 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg text-xs font-bold border border-zinc-200 dark:border-zinc-700 transition-all active:scale-95"
+                        >
+                          <FileText className="w-4 h-4" />
+                          PDF Resumo
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -6501,35 +6599,59 @@ export default function App() {
     );
   };
 
-  const generateGroupSalePDF = (sale: Sale) => {
+  const generateSalePDF = (sale: Sale, options: { showValues: boolean } = { showValues: true }) => {
     const doc = new jsPDF();
     doc.setFontSize(18);
-    doc.text(`Venda em Grupo - ${sale.saleNumber}`, 14, 22);
+    const titleText = sale.type === 'group' ? 'Venda em Grupo' : 'Venda de Produtos';
+    doc.text(`${titleText} - ${sale.saleNumber}`, 14, 22);
+    
     doc.setFontSize(12);
-    doc.text(`Data: ${format(parseISO(sale.createdAt), 'dd/MM/yyyy')}`, 14, 30);
-    doc.text(`Total: R$ ${sale.finalAmount.toFixed(2)}`, 14, 36);
+    doc.text(`Data: ${format(parseISO(sale.createdAt), 'dd/MM/yyyy HH:mm')}`, 14, 30);
+    
+    if (options.showValues) {
+      doc.text(`Total: R$ ${sale.finalAmount.toFixed(2)}`, 14, 36);
+    }
 
-    const tableColumn = ["Comprador", "Produto", "Qtd", "Status", "Valor"];
+    const tableColumn = options.showValues 
+      ? ["Comprador", "Produto", "Qtd", "Status", "Valor"]
+      : ["Comprador", "Produto", "Qtd", "Status (Pago?)"];
+      
     const tableRows: any[] = [];
 
     sale.items.forEach(item => {
       const product = products.find(p => p.id === item.productId);
-      tableRows.push([
+      const row = [
         item.buyerName || 'N/A',
         product?.name || 'N/A',
         item.quantity,
-        item.status === 'paid' ? '✅ Pago' : '❌ Pendente',
-        `R$ ${item.totalPrice.toFixed(2)}`
-      ]);
+        item.status === 'paid' ? 'SIM (OK)' : 'NÃO (PENDENTE)',
+      ];
+      if (options.showValues) {
+        row.push(`R$ ${item.totalPrice.toFixed(2)}`);
+      }
+      tableRows.push(row);
     });
 
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 45,
+      startY: options.showValues ? 45 : 40,
+      theme: 'grid',
+      headStyles: { fillColor: [39, 39, 42] },
+      didDrawCell: (data) => {
+        if (data.section === 'body' && data.column.index === 3) {
+          const text = data.cell.text[0];
+          if (text === 'SIM (OK)') {
+            doc.setTextColor(16, 185, 129); // Emerald 500
+          } else {
+            doc.setTextColor(239, 68, 68); // Red 500
+          }
+        }
+      }
     });
 
-    doc.save(`venda_grupo_${sale.saleNumber}.pdf`);
+    const fileName = options.showValues ? `venda_${sale.saleNumber}_completa.pdf` : `venda_${sale.saleNumber}_resumo.pdf`;
+    doc.save(fileName);
   };
 
   const generatePDF = (filteredTransactions: Transaction[]) => {
@@ -7130,6 +7252,28 @@ export default function App() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-8 border border-zinc-200 dark:border-zinc-800 shadow-xl mt-6">
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Modo de Teste</h3>
+          <p className="text-zinc-500 text-sm mb-6">Povoar o banco de dados com informações fictícias para testes rápidos.</p>
+          <button 
+            onClick={async () => {
+              if (confirm('Deseja povoar o banco de dados com dados de teste? Isso irá adicionar alunos, produtos e vendas fictícios.')) {
+                try {
+                  await seedDatabase();
+                  alert('Banco de dados povoado com sucesso! Recarregue a página para ver as mudanças.');
+                  window.location.reload();
+                } catch (error) {
+                  alert('Erro ao povoar banco de dados. Verifique o console.');
+                }
+              }
+            }}
+            className="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white font-bold py-4 rounded-2xl transition-all border border-zinc-200 dark:border-zinc-700 flex items-center justify-center gap-2"
+          >
+            <Database className="w-5 h-5" />
+            Povoar Banco de Testes
+          </button>
         </div>
       </div>
     );
